@@ -1,9 +1,9 @@
-classdef UHF < RHF
+classdef UHF < SCF.RHF
     
     methods
         
         function obj = UHF(properties)
-            obj = obj@RHF(properties);
+            obj = obj@SCF.RHF(properties);
         end
         
     end
@@ -38,7 +38,7 @@ classdef UHF < RHF
             orbital = cell(1, 2);
             for spin = 1:2
                 [orbital{spin}, orbEigValues{spin}] ...
-                    = obj.SolveFockVec@RHF(fockVec(:, spin), inv_S_Half);
+                    = obj.SolveFockVec@SCF.RHF(fockVec(:, spin), inv_S_Half);
             end
         end
         
@@ -49,19 +49,19 @@ classdef UHF < RHF
         end
         
         function cdiis = CDIIS(obj, numVectors)
-            cdiis = CDIIS(obj.overlapMat, numVectors, 'u');
+            cdiis = SCF.CDIIS(obj.overlapMat, numVectors, 'u');
         end
         
         function ediis = EDIIS(obj, numVectors)
-            ediis = EDIIS(obj.coreHamilt, numVectors, 'u');
+            ediis = SCF.EDIIS(obj.coreHamilt, numVectors, 'u');
         end
         
         function adiis = ADIIS(obj, numVectors)
-            adiis = ADIIS(obj.coreHamilt, numVectors, 'u');
+            adiis = SCF.ADIIS(obj.coreHamilt, numVectors, 'u');
         end
         
         function lciis = LCIIS(obj, numVectors)
-            lciis = LCIIS(obj.overlapMat, numVectors, 'u');
+            lciis = SCF.LCIIS(obj.overlapMat, numVectors, 'u');
         end
         
     end

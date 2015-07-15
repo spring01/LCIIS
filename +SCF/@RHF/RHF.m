@@ -61,19 +61,19 @@ classdef RHF < handle
         end
         
         function cdiis = CDIIS(obj, numVectors)
-            cdiis = CDIIS(obj.overlapMat, numVectors, 'r');
+            cdiis = SCF.CDIIS(obj.overlapMat, numVectors, 'r');
         end
         
         function ediis = EDIIS(obj, numVectors)
-            ediis = EDIIS(obj.coreHamilt, numVectors, 'r');
+            ediis = SCF.EDIIS(obj.coreHamilt, numVectors, 'r');
         end
         
         function adiis = ADIIS(obj, numVectors)
-            adiis = ADIIS(obj.coreHamilt, numVectors, 'r');
+            adiis = SCF.ADIIS(obj.coreHamilt, numVectors, 'r');
         end
         
         function lciis = LCIIS(obj, numVectors)
-            lciis = LCIIS(obj.overlapMat, numVectors, 'r');
+            lciis = SCF.LCIIS(obj.overlapMat, numVectors, 'r');
         end
         
     end

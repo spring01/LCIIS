@@ -1,4 +1,4 @@
-classdef RKS < RHF
+classdef RKS < SCF.RHF
     
     properties (Access = protected)
         
@@ -10,7 +10,7 @@ classdef RKS < RHF
     methods
         
         function obj = RKS(properties, dft)
-            obj = obj@RHF(properties);
+            obj = obj@SCF.RHF(properties);
             obj.matpsi2.DFT_Initialize(dft);
             if(strcmpi(dft, 'b3lyp') || strcmpi(dft, 'b3lypv5'))
                 obj.hfExcCoeff = 0.2;
@@ -37,7 +37,7 @@ classdef RKS < RHF
         end
         
         function energy = SCFEnergy(obj, fockVec, densVec)
-            energy = obj.SCFEnergy@RHF(fockVec, densVec) ...
+            energy = obj.SCFEnergy@SCF.RHF(fockVec, densVec) ...
                 - reshape(obj.currentV, 1, []) * densVec ...
                 + obj.matpsi2.DFT_EnergyXC();
         end

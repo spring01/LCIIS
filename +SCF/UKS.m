@@ -1,10 +1,10 @@
-classdef UKS < UHF & RKS
+classdef UKS < SCF.UHF & SCF.RKS
     
     methods
         
         function obj = UKS(properties, dft)
-            obj@RKS(properties, dft);
-            obj@UHF(properties);
+            obj@SCF.RKS(properties, dft);
+            obj@SCF.UHF(properties);
         end
         
     end
@@ -33,7 +33,7 @@ classdef UKS < UHF & RKS
         end
         
         function energy = SCFEnergy(obj, fockVec, densVec)
-            energy = obj.SCFEnergy@UHF(fockVec, densVec) ...
+            energy = obj.SCFEnergy@SCF.UHF(fockVec, densVec) ...
                 - reshape(obj.currentV(:,:,1), 1, []) * densVec(:, 1) / 2 ...
                 - reshape(obj.currentV(:,:,2), 1, []) * densVec(:, 2) / 2 ...
                 + obj.matpsi2.DFT_EnergyXC();
