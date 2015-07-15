@@ -7,11 +7,11 @@ classdef LCIIS < handle
         S_Half;
         inv_S_Half;
         
-        tempTensor;
         tempTensorForGrad;
         tempTensorForHess;
         
         minHessRcond = 1e-25;
+        gradNormThres = 1e-12;
         
     end
     
@@ -122,31 +122,20 @@ classdef LCIIS < handle
             tensor = reshape(error*error', numVectors, numVectors, numVectors, numVectors);
         end
         
-        function [value, grad, hess] = ValGradHess(obj, coeffs)
+        function [grad, hess] = GradHess(obj, coeffs)
             nVecs = length(coeffs);
             
-            value = reshape(obj.tempTensor, [], nVecs) * coeffs;
-            value = reshape(value, [], nVecs) * coeffs;
-            value = reshape(value, [], nVecs) * coeffs;
-            value = reshape(value, [], nVecs) * coeffs;
+            grad = reshape(obj.tempTensorForGrad, [], nVecs) * coeffs;
+            grad = reshape(grad, [], nVecs) * coeffs;
+            grad = reshape(grad, [], nVecs) * coeffs;
             
-            if(nargout > 1)
-                grad = reshape(obj.tempTensorForGrad, [], nVecs) * coeffs;
-                grad = reshape(grad, [], nVecs) * coeffs;
-                grad = reshape(grad, [], nVecs) * coeffs;
-            end
-            
-            if(nargout > 2)
-                hess = reshape(obj.tempTensorForHess, [], nVecs) * coeffs;
-                hess = reshape(hess, [], nVecs) * coeffs;
-                hess = reshape(hess, [], nVecs);
-            end
-            
+            hess = reshape(obj.tempTensorForHess, [], nVecs) * coeffs;
+            hess = reshape(hess, [], nVecs) * coeffs;
+            hess = reshape(hess, [], nVecs);
         end
         
         function coeffs = NewtonSolver(obj, tensor, iniCoeffs)
             coeffs = iniCoeffs;
-            obj.tempTensor = tensor;
             obj.tempTensorForGrad = ...
                 permute(tensor, [1 2 3 4]) + permute(tensor, [2 1 3 4]) + ...
                 permute(tensor, [3 1 2 4]) + permute(tensor, [4 1 2 3]);
@@ -155,26 +144,26 @@ classdef LCIIS < handle
                 permute(tensor, [2 1 3 4]) + permute(tensor, [2 3 1 4]) + permute(tensor, [2 4 1 3]) + ...
                 permute(tensor, [3 1 2 4]) + permute(tensor, [3 2 1 4]) + permute(tensor, [3 4 1 2]) + ...
                 permute(tensor, [4 1 2 3]) + permute(tensor, [4 2 1 3]) + permute(tensor, [4 3 1 2]);
-            for iter = 1:100
-                [val, grad, hess] = obj.ValGradHess(coeffs);
-                lambda = -4 * val;
+            lambda = 0;
+            for iter = 1:200
+                [grad, hess] = obj.GradHess(coeffs);
                 gradL = [grad + lambda; 0];
                 onesVec = ones(length(coeffs), 1);
                 hessL = [hess, onesVec; onesVec', 0];
                 if(rcond(hessL) < obj.minHessRcond)
                     disp('Inversion failed')
-                    coeffs = NaN .* iniCoeffs;
                     return;
                 end
                 coeffsAndLambda = [coeffs; lambda];
                 coeffsAndLambda = coeffsAndLambda - hessL \ gradL;
                 coeffs = coeffsAndLambda(1:end-1);
-                if(sqrt(mean(gradL.^2)) < 1e-12)
+                lambda = coeffsAndLambda(end);
+                if(sqrt(mean(gradL.^2)) < obj.gradNormThres)
                     return;
                 end
             end
             
-            if(iter > 99)
+            if(iter > 199)
                 disp('Not converged');
             end
         end

@@ -48,13 +48,13 @@ classdef RHF < handle
             fockVec = reshape(obj.coreHamilt, [], 1) + reshape(gMat, [], 1);
         end
         
-        function [orbital, orbEigValues] = SolveFockVec(obj, fockVec, inv_S_Half)
+        function [orbital, orbEigValues] = SolveFockVec(~, fockVec, inv_S_Half)
             fockMat = reshape(fockVec, sqrt(numel(fockVec)), []);
             fockMat = inv_S_Half' * fockMat * inv_S_Half;
             fockMat = (fockMat + fockMat') ./ 2;
             [orbitalOtho, orbEigValues] = eig(fockMat);
             [orbEigValues, ascend_order] = sort(diag(orbEigValues));
-            orbitalOtho = obj.OrthDegenOrbitals(orbitalOtho(:, ascend_order), orbEigValues);
+            orbitalOtho = orbitalOtho(:, ascend_order);
             orbital = inv_S_Half * orbitalOtho;
         end
         
@@ -76,28 +76,6 @@ classdef RHF < handle
         
         function lciis = LCIIS(obj, numVectors)
             lciis = SCF.LCIIS(obj.overlapMat, numVectors, 'r');
-        end
-        
-    end
-    
-    methods (Access = private)
-        
-        function orbitalOtho = OrthDegenOrbitals(~, orbitalOtho, orbEigValues)
-            diffVec = [0; diff(orbEigValues)];
-            diffVec(abs(diffVec) < 1e-8) = 0;
-            indVec = 1:length(orbEigValues);
-            indStart = [1, indVec(diffVec~=0)];
-            for iUniqEVal = 1:length(indStart) - 1
-                indRange = indStart(iUniqEVal):indStart(iUniqEVal+1);
-                temp = orbitalOtho(:, indRange);
-                for iSubspace = 2:size(temp, 2)
-                    for jSubspace = 1:iSubspace-1
-                        temp(:, iSubspace) = temp(:, iSubspace) - (temp(:, iSubspace)'*temp(:, jSubspace)) .* temp(:, jSubspace);
-                    end
-                    temp(:, iSubspace) = temp(:, iSubspace) ./ norm(temp(:, iSubspace));
-                end
-                orbitalOtho(:, indRange) = temp;
-            end
         end
         
     end

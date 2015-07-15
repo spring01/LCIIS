@@ -145,7 +145,7 @@ end
 end
 
 function fockVec = ECe(ediis, cdiis, energyDiff)
-if(energyDiff > 1e-3)
+if(energyDiff > 1e-2)
     fockVec = ediis.OptFockVector();
     disp(class(ediis));
 else
