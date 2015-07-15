@@ -177,11 +177,11 @@ classdef LCIIS < handle
                 gradL = [grad + lambda; 0];
                 onesVec = ones(length(coeffs), 1);
                 hessL = [hess, onesVec; onesVec', 0];
-%                 if(rcond(hessL) < 1e-20)
-%                     disp('Inversion failed')
-% %                     coeffs = iniCoeffs;
-%                     return;
-%                 end
+                if(rcond(hessL) < 1e-20)
+                    disp('Inversion failed')
+                    coeffs = NaN .* iniCoeffs;
+                    return;
+                end
                 coeffsAndLambda = [coeffs; lambda];
                 coeffsAndLambda = coeffsAndLambda - hessL \ gradL;
                 coeffs = coeffsAndLambda(1:end-1);

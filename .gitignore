@@ -1,4 +1,6 @@
 @MatPsi2
 *.m~
 temp.*
+*Run.m
+*Plot.m
 

@@ -117,8 +117,8 @@ elseif(maxErr < 1e-4)
     fockVec = cdiis.OptFockVector();
     disp(class(cdiis));
 else
-    [~, ediisCoeffs, ~] = ediis.OptFockVector();
     [~, cdiisCoeffs, fockVecSet] = cdiis.OptFockVector();
+    [~, ediisCoeffs, ~] = ediis.SolveForNumVectors(length(cdiisCoeffs));
     coeffs = 10.*maxErr .* ediisCoeffs + (1 - 10.*maxErr) .* cdiisCoeffs;
     fockVec = cdiis.CalcFockVec(coeffs, fockVecSet);
     disp(['mix ', class(ediis), ' ', class(cdiis)]);

@@ -47,9 +47,13 @@ classdef EDIIS < handle
         end
         
         function [optFockVector, coeffs, useFockVectors] = OptFockVector(obj)
+            numVectors = sum(sum(obj.densVectors{1}.^2) ~= 0);
+            [optFockVector, coeffs, useFockVectors] = obj.SolveForNumVectors(numVectors);
+        end
+        
+        function [optFockVector, coeffs, useFockVectors] = SolveForNumVectors(obj, numVectors)
             useFockVectors = cell(1, length(obj.fockVectors));
             optFockVector = zeros(size(obj.fockVectors{1}, 1), length(obj.fockVectors));
-            numVectors = sum(sum(obj.densVectors{1}.^2) ~= 0);
             if(numVectors == 0 || numVectors == 1)
                 for spin = 1:length(obj.fockVectors)
                     optFockVector(:, spin) = obj.fockVectors{spin}(:, end);

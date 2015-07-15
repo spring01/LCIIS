@@ -104,7 +104,12 @@ classdef CDIIS < handle
             hessian = [ ...
                 useErrorVectors'*useErrorVectors, onesVec; ...
                 onesVec', 0];
-            diisCoefficients = hessian \ [zeros(numVectors,1); 1];
+            if(rcond(hessian) < 1e-20)
+                disp('Inversion failed')
+                diisCoefficients = NaN .* [zeros(numVectors,1); 1];
+            else
+                diisCoefficients = hessian \ [zeros(numVectors,1); 1];
+            end
             coeffs = diisCoefficients(1:end-1);
             
             for spin = 1:length(obj.fockVectors)

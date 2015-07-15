@@ -21,7 +21,7 @@ classdef UHF < SCF.RHF
         function fockVec = OrbToFockVec(obj, orbital)
             occOrbAlpha = orbital{1}(:, 1:obj.numElectrons(1));
             occOrbBeta = orbital{2}(:, 1:obj.numElectrons(2));
-            obj.matpsi2.JK_CalcAllFromOrb(occOrbAlpha, occOrbBeta);
+            obj.matpsi2.JK_CalcAllFromOccOrb(occOrbAlpha, occOrbBeta);
             jMat = obj.matpsi2.JK_RetrieveJ();
             kMat = obj.matpsi2.JK_RetrieveK();
             gMat = repmat(sum(jMat, 3), [1 1 2]) - kMat;

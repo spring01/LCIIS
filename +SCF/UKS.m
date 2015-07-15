@@ -20,7 +20,7 @@ classdef UKS < SCF.UHF & SCF.RKS
                 jMat = obj.matpsi2.JK_OccOrbToJ(occOrbAlpha, occOrbBeta);
                 gMat = repmat(sum(jMat, 3), [1 1 2]) + obj.currentV;
             else
-                obj.matpsi2.JK_CalcAllFromOrb(occOrbAlpha, occOrbBeta);
+                obj.matpsi2.JK_CalcAllFromOccOrb(occOrbAlpha, occOrbBeta);
                 jMat = obj.matpsi2.JK_RetrieveJ();
                 kMat = obj.matpsi2.JK_RetrieveK();
                 gMat = repmat(sum(jMat, 3), [1 1 2]) + obj.currentV ...

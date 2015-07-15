@@ -29,7 +29,7 @@ classdef RKS < SCF.RHF
             if(obj.hfExcCoeff == 0) % pure DFT, do not need K
                 gMat = 2 .* obj.matpsi2.JK_OccOrbToJ(occOrb) + obj.currentV;
             else % hybrid, do need K
-                obj.matpsi2.JK_CalcAllFromOrb(occOrb);
+                obj.matpsi2.JK_CalcAllFromOccOrb(occOrb);
                 gMat = 2 .* obj.matpsi2.JK_RetrieveJ() + obj.currentV ...
                     - obj.hfExcCoeff * obj.matpsi2.JK_RetrieveK();
             end

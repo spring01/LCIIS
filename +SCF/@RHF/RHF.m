@@ -43,7 +43,7 @@ classdef RHF < handle
         
         function fockVec = OrbToFockVec(obj, orbital)
             occOrb = orbital(:, 1:obj.numElectrons(1));
-            obj.matpsi2.JK_CalcAllFromOrb(occOrb);
+            obj.matpsi2.JK_CalcAllFromOccOrb(occOrb);
             gMat = 2 .* obj.matpsi2.JK_RetrieveJ() - obj.matpsi2.JK_RetrieveK();
             fockVec = reshape(obj.coreHamilt, [], 1) + reshape(gMat, [], 1);
         end
