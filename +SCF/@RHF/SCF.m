@@ -1,4 +1,4 @@
-function [energy, energySet, iter, orbital] = SCF(obj, guessOrbital, diisType)
+function [energy, energySet, densVecSet, iter, orbital] = SCF(obj, guessOrbital, diisType)
 inv_S_Half = inv(sqrtm(obj.overlapMat));
 orbital = guessOrbital;
 densVec = obj.OrbToDensVec(orbital);
@@ -16,6 +16,7 @@ adiis20 = obj.ADIIS(20);
 energy = 0;
 maxErrSet = [];
 energySet = [];
+densVecSet = {};
 for iter = 1:obj.maxSCFIter
     oldEnergy = energy;
     fockVec = obj.OrbToFockVec(orbital);
@@ -87,6 +88,8 @@ for iter = 1:obj.maxSCFIter
     oldDensVec = densVec;
     orbital = obj.SolveFockVec(fockVec, inv_S_Half);
     densVec = obj.OrbToDensVec(orbital);
+    
+    densVecSet{iter} = densVec; %#ok
     
     disp(mean(sqrt(mean((densVec - oldDensVec).^2))));
     disp(mean(max(abs(densVec - oldDensVec))));
