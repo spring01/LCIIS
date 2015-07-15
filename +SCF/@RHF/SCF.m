@@ -60,7 +60,7 @@ for iter = 1:obj.maxSCFIter
             disp('lciis(20)');
         case('L6')
             fockVec = lciis6.OptFockVector();
-            disp('mciis(6)');
+            disp('lciis(6)');
         case('EL20')
             [fockVec, maxErrSet] = EC(ediis20, lciis20, cdiis20.MaxError(), maxErrSet, iter);
         case('EL6')
