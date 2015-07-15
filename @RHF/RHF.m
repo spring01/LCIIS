@@ -43,8 +43,8 @@ classdef RHF < handle
         
         function fockVec = OrbToFockVec(obj, orbital)
             occOrb = orbital(:, 1:obj.numElectrons(1));
-            gMat = 2 .* obj.matpsi2.JK_OccOrbToJ(occOrb) ...
-                - obj.matpsi2.JK_OccOrbToK(occOrb);
+            obj.matpsi2.JK_CalcAllFromOrb(occOrb);
+            gMat = 2 .* obj.matpsi2.JK_RetrieveJ() - obj.matpsi2.JK_RetrieveK();
             fockVec = reshape(obj.coreHamilt, [], 1) + reshape(gMat, [], 1);
         end
         
@@ -58,15 +58,6 @@ classdef RHF < handle
         
         function energy = SCFEnergy(obj, fockVec, densVec)
             energy = (reshape(obj.coreHamilt, [], 1) + fockVec)'*densVec + obj.nucRepEnergy;
-        end
-        
-        function energy = DampedSCFEnergy(obj, fockVec, densVec, ~, ~)
-            energy = obj.SCFEnergy(fockVec, densVec);
-        end
-        
-        function newVec = Damping(~, dampingCoeff, vec, oldVec)
-            coeffs = [dampingCoeff; (1 - dampingCoeff)];
-            newVec = [vec, oldVec] * coeffs;
         end
         
         function cdiis = CDIIS(obj, numVectors)

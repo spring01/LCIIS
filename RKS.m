@@ -2,7 +2,6 @@ classdef RKS < RHF
     
     properties (Access = protected)
         
-        previousV;
         currentV;
         hfExcCoeff;
         
@@ -26,11 +25,13 @@ classdef RKS < RHF
         
         function fockVec = OrbToFockVec(obj, orbital)
             occOrb = orbital(:, 1:obj.numElectrons(1));
-            obj.previousV = obj.currentV;
-            obj.currentV = obj.matpsi2.DFT_OccOrbToV(occOrb);
-            gMat = 2 .* obj.matpsi2.JK_OccOrbToJ(occOrb) + obj.currentV;
-            if(obj.hfExcCoeff ~= 0)
-                gMat = gMat - obj.hfExcCoeff * obj.matpsi2.JK_OccOrbToK(occOrb);
+            obj.currentV = obj.matpsi2.DFT_OccOrbToV(occOrb);            
+            if(obj.hfExcCoeff == 0) % pure DFT, do not need K
+                gMat = 2 .* obj.matpsi2.JK_OccOrbToJ(occOrb) + obj.currentV;
+            else % hybrid, do need K
+                obj.matpsi2.JK_CalcAllFromOrb(occOrb);
+                gMat = 2 .* obj.matpsi2.JK_RetrieveJ() + obj.currentV ...
+                    - obj.hfExcCoeff * obj.matpsi2.JK_RetrieveK();
             end
             fockVec = reshape(obj.coreHamilt, [], 1) + reshape(gMat, [], 1);
         end
@@ -39,13 +40,6 @@ classdef RKS < RHF
             energy = obj.SCFEnergy@RHF(fockVec, densVec) ...
                 - reshape(obj.currentV, 1, []) * densVec ...
                 + obj.matpsi2.DFT_EnergyXC();
-        end
-        
-        function energy = DampedSCFEnergy(obj, fockVec, densVec, dampingCoeff, ~)
-            obj.matpsi2.DFT_DensToV(reshape(densVec, sqrt(numel(densVec)), []));
-            dampedV = obj.currentV .* dampingCoeff + obj.previousV .* (1 - dampingCoeff);
-            energy = (reshape(obj.coreHamilt, [], 1) + fockVec)'*densVec + obj.nucRepEnergy ...
-                - reshape(dampedV, 1, []) * densVec + obj.matpsi2.DFT_EnergyXC();
         end
         
     end

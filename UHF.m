@@ -21,8 +21,9 @@ classdef UHF < RHF
         function fockVec = OrbToFockVec(obj, orbital)
             occOrbAlpha = orbital{1}(:, 1:obj.numElectrons(1));
             occOrbBeta = orbital{2}(:, 1:obj.numElectrons(2));
-            jMat = obj.matpsi2.JK_OccOrbToJ(occOrbAlpha, occOrbBeta);
-            kMat = obj.matpsi2.JK_OccOrbToK(occOrbAlpha, occOrbBeta);
+            obj.matpsi2.JK_CalcAllFromOrb(occOrbAlpha, occOrbBeta);
+            jMat = obj.matpsi2.JK_RetrieveJ();
+            kMat = obj.matpsi2.JK_RetrieveK();
             gMat = repmat(sum(jMat, 3), [1 1 2]) - kMat;
             oeiVec = reshape(obj.coreHamilt, [], 1);
             fockVec = repmat(oeiVec, 1, 2) + ...
@@ -45,14 +46,6 @@ classdef UHF < RHF
             energy = (reshape(obj.coreHamilt, [], 1)' * sum(densVec, 2) ...
                 + fockVec(:, 1)' * densVec(:, 1) ...
                 + fockVec(:, 2)' * densVec(:, 2)) / 2 + obj.nucRepEnergy;
-        end
-        
-        function newVec = Damping(~, dampingCoeff, vec, oldVec)
-            newVec = zeros(size(vec));
-            coeffs = [dampingCoeff; (1 - dampingCoeff)];
-            for spin = 1:2
-                newVec(:, spin) = [vec(:, spin), oldVec(:, spin)] * coeffs;
-            end
         end
         
         function cdiis = CDIIS(obj, numVectors)
