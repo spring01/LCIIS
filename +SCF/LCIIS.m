@@ -7,6 +7,10 @@ classdef LCIIS < handle
         S_Half;
         inv_S_Half;
         
+        tempTensor;
+        tempTensorForGrad;
+        tempTensorForHess;
+        
         errorVectors;
         
     end
@@ -95,6 +99,7 @@ classdef LCIIS < handle
                 tensor = tensor + obj.CalcTensor(useFockVectors{spin}, useDensVectors{spin});
             end
             
+            % start from CDIIS coefficients
             useErrorVectors = obj.errorVectors(:, end-numVectors+1:end);
             onesVec = ones(numVectors, 1);
             hessian = [ ...
@@ -133,30 +138,22 @@ classdef LCIIS < handle
             tensor = reshape(error*error', numVectors, numVectors, numVectors, numVectors);
         end
         
-        function [value, grad, hess] = Target(~, coeffs, tensor)
+        function [value, grad, hess] = Target(obj, coeffs)
             nVecs = length(coeffs);
             
-            value = reshape(tensor, [], nVecs) * coeffs;
+            value = reshape(obj.tempTensor, [], nVecs) * coeffs;
             value = reshape(value, [], nVecs) * coeffs;
             value = reshape(value, [], nVecs) * coeffs;
             value = reshape(value, [], nVecs) * coeffs;
             
             if(nargout > 1)
-                grad = reshape( ...
-                    permute(tensor, [1 2 3 4]) + ...
-                    permute(tensor, [2 1 3 4]) + ...
-                    permute(tensor, [3 1 2 4]) + ...
-                    permute(tensor, [4 1 2 3]), [], nVecs) * coeffs;
+                grad = reshape(obj.tempTensorForGrad, [], nVecs) * coeffs;
                 grad = reshape(grad, [], nVecs) * coeffs;
                 grad = reshape(grad, [], nVecs) * coeffs;
             end
             
             if(nargout > 2)
-                hess = reshape( ...
-                    permute(tensor, [1 2 3 4]) + permute(tensor, [1 3 2 4]) + permute(tensor, [1 4 2 3]) + ...
-                    permute(tensor, [2 1 3 4]) + permute(tensor, [2 3 1 4]) + permute(tensor, [2 4 1 3]) + ...
-                    permute(tensor, [3 1 2 4]) + permute(tensor, [3 2 1 4]) + permute(tensor, [3 4 1 2]) + ...
-                    permute(tensor, [4 1 2 3]) + permute(tensor, [4 2 1 3]) + permute(tensor, [4 3 1 2]), [], nVecs) * coeffs;
+                hess = reshape(obj.tempTensorForHess, [], nVecs) * coeffs;
                 hess = reshape(hess, [], nVecs) * coeffs;
                 hess = reshape(hess, [], nVecs);
             end
@@ -165,8 +162,17 @@ classdef LCIIS < handle
         
         function coeffs = NewtonSolver(obj, tensor, iniCoeffs)
             coeffs = iniCoeffs;
+            obj.tempTensor = tensor;
+            obj.tempTensorForGrad = ...
+                permute(tensor, [1 2 3 4]) + permute(tensor, [2 1 3 4]) + ...
+                permute(tensor, [3 1 2 4]) + permute(tensor, [4 1 2 3]);
+            obj.tempTensorForHess = ...
+                permute(tensor, [1 2 3 4]) + permute(tensor, [1 3 2 4]) + permute(tensor, [1 4 2 3]) + ...
+                permute(tensor, [2 1 3 4]) + permute(tensor, [2 3 1 4]) + permute(tensor, [2 4 1 3]) + ...
+                permute(tensor, [3 1 2 4]) + permute(tensor, [3 2 1 4]) + permute(tensor, [3 4 1 2]) + ...
+                permute(tensor, [4 1 2 3]) + permute(tensor, [4 2 1 3]) + permute(tensor, [4 3 1 2]);
             for iter = 1:100
-                [val, grad, hess] = obj.Target(coeffs, tensor);
+                [val, grad, hess] = obj.Target(coeffs);
                 lambda = -4 * val;
                 gradL = [grad + lambda; 0];
                 onesVec = ones(length(coeffs), 1);

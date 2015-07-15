@@ -54,9 +54,36 @@ classdef CDIIS < handle
         end
         
         function [optFockVector, coeffs, useFockVectors] = OptFockVector(obj)
+            numVectors = sum(sum(obj.errorVectors.^2) ~= 0);
+            [optFockVector, coeffs, useFockVectors] = obj.SolveForNumVectors(numVectors);
+            while(isnan(coeffs))
+                numVectors = numVectors - 1;
+                [optFockVector, coeffs, useFockVectors] = obj.SolveForNumVectors(numVectors);
+            end
+        end
+        
+        function optFockVector = CalcFockVec(obj, coeffs, useFockVectors)
+            optFockVector = zeros(size(obj.fockVectors{1}, 1), length(obj.fockVectors));
+            if(length(obj.fockVectors) == 1)
+                newCell{1} = useFockVectors;
+                useFockVectors = newCell;
+            end
+            for spin = 1:length(obj.fockVectors)
+                optFockVector(:, spin) = useFockVectors{spin} * coeffs;
+            end
+        end
+        
+        function maxError = MaxError(obj)
+            maxError = max(abs(obj.errorVectors(:, end)));
+        end
+        
+    end
+    
+    methods (Access = private)
+        
+        function [optFockVector, coeffs, useFockVectors] = SolveForNumVectors(obj, numVectors)
             useFockVectors = cell(1, length(obj.fockVectors));
             optFockVector = zeros(size(obj.fockVectors{1}, 1), length(obj.fockVectors));
-            numVectors = sum(sum(obj.errorVectors.^2) ~= 0);
             if(numVectors == 0 || numVectors == 1)
                 for spin = 1:length(obj.fockVectors)
                     optFockVector(:, spin) = obj.fockVectors{spin}(:, end);
@@ -89,23 +116,6 @@ classdef CDIIS < handle
             end
             
 %             disp(coeffs');
-        end
-        
-        function optFockVector = CalcFockVec(obj, coeffs, useFockVectors)
-            optFockVector = zeros(size(obj.fockVectors{1}, 1), length(obj.fockVectors));
-            if(length(obj.fockVectors) == 1)
-                newCell{1} = useFockVectors;
-                useFockVectors = newCell;
-            end
-            for spin = 1:length(obj.fockVectors)
-                optFockVector(:, spin) = useFockVectors{spin} * coeffs;
-            end
-            
-%             disp(coeffs');
-        end
-        
-        function maxError = MaxError(obj)
-            maxError = max(abs(obj.errorVectors(:, end)));
         end
         
     end
