@@ -27,7 +27,7 @@ classdef RHF < handle
         
         function [densVec, orbital] = CoreGuess(obj)
             coreFockVec = reshape(obj.coreHamilt, [], 1);
-            inv_S_Half = eye(size(obj.overlapMat)) / sqrtm(obj.overlapMat);
+            inv_S_Half = inv(sqrtm(obj.overlapMat));
             orbital = obj.SolveFockVec(coreFockVec, inv_S_Half);
             densVec = obj.OrbToDensVec(orbital);
         end
@@ -50,7 +50,9 @@ classdef RHF < handle
         
         function [orbital, orbEigValues] = SolveFockVec(obj, fockVec, inv_S_Half)
             fockMat = reshape(fockVec, sqrt(numel(fockVec)), []);
-            [orbitalOtho, orbEigValues] = eig(inv_S_Half*fockMat*inv_S_Half);
+            fockMat = inv_S_Half' * fockMat * inv_S_Half;
+            fockMat = (fockMat + fockMat') ./ 2;
+            [orbitalOtho, orbEigValues] = eig(fockMat);
             [orbEigValues, ascend_order] = sort(diag(orbEigValues));
             orbitalOtho = obj.OrthDegenOrbitals(orbitalOtho(:, ascend_order), orbEigValues);
             orbital = inv_S_Half * orbitalOtho;

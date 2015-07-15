@@ -46,12 +46,10 @@ classdef EDIIS < handle
             obj.energies(end) = newElecEnergy;
         end
         
-        function [optFockVector, coeffs, useFockVectors] = OptFockVector(obj)
-            numVectors = sum(sum(obj.densVectors{1}.^2) ~= 0);
-            [optFockVector, coeffs, useFockVectors] = obj.SolveForNumVectors(numVectors);
-        end
-        
-        function [optFockVector, coeffs, useFockVectors] = SolveForNumVectors(obj, numVectors)
+        function [optFockVector, coeffs, useFockVectors] = OptFockVector(obj, numVectors)
+            if(nargin < 2)
+                numVectors = sum(sum(obj.densVectors{1}.^2) ~= 0);
+            end
             useFockVectors = cell(1, length(obj.fockVectors));
             optFockVector = zeros(size(obj.fockVectors{1}, 1), length(obj.fockVectors));
             if(numVectors == 0 || numVectors == 1)
@@ -101,7 +99,6 @@ classdef EDIIS < handle
                 useFockVectors = useFockVectors{1};
             end
             
-%             disp(coeffs');
         end
         
     end

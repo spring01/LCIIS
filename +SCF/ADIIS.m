@@ -40,10 +40,12 @@ classdef ADIIS < handle
             end
         end
         
-        function [optFockVector, coeffs, useFockVectors] = OptFockVector(obj)
+        function [optFockVector, coeffs, useFockVectors] = OptFockVector(obj, numVectors)
+            if(nargin < 2)
+                numVectors = sum(sum(obj.densVectors{1}.^2) ~= 0);
+            end
             useFockVectors = cell(1, length(obj.fockVectors));
             optFockVector = zeros(size(obj.fockVectors{1}, 1), length(obj.fockVectors));
-            numVectors = sum(sum(obj.densVectors{1}.^2) ~= 0);
             if(numVectors == 0 || numVectors == 1)
                 for spin = 1:length(obj.fockVectors)
                     optFockVector(:, spin) = obj.fockVectors{spin}(:, end);
@@ -63,6 +65,7 @@ classdef ADIIS < handle
             
             errorFockVectors = cell(1, length(obj.fockVectors));
             errorDensVectors = cell(1, length(obj.fockVectors));
+            
             % compute errors wrt. the latest Fock or density
             for spin = 1:length(obj.fockVectors)
                 errorFockVectors{spin} = useFockVectors{spin} - ...
@@ -81,7 +84,7 @@ classdef ADIIS < handle
             hessian = hessian + hessian'; % multiply Hessian by 2 and cancels numerical error
             
             options = optimoptions('quadprog', 'Algorithm', 'active-set', 'Display', 'off');
-            coeffs = quadprog(real(hessian), real(firstOrder), ...
+            coeffs = quadprog(hessian, firstOrder, ...
                 -eye(numVectors), zeros(numVectors, 1), ...
                 ones(1,numVectors), 1, ...
                 [], [], ...
@@ -95,7 +98,6 @@ classdef ADIIS < handle
                 useFockVectors = useFockVectors{1};
             end
             
-%             disp(coeffs');
         end
         
     end

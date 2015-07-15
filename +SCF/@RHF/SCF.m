@@ -1,5 +1,5 @@
 function [energy, energySet, iter, orbital] = SCF(obj, guessOrbital, diisType)
-inv_S_Half = eye(size(obj.overlapMat)) / sqrtm(obj.overlapMat);
+inv_S_Half = inv(sqrtm(obj.overlapMat));
 orbital = guessOrbital;
 densVec = obj.OrbToDensVec(orbital);
 
@@ -118,7 +118,7 @@ elseif(maxErr < 1e-4)
     disp(class(cdiis));
 else
     [~, cdiisCoeffs, fockVecSet] = cdiis.OptFockVector();
-    [~, ediisCoeffs, ~] = ediis.SolveForNumVectors(length(cdiisCoeffs));
+    [~, ediisCoeffs, ~] = ediis.OptFockVector(length(cdiisCoeffs));
     coeffs = 10.*maxErr .* ediisCoeffs + (1 - 10.*maxErr) .* cdiisCoeffs;
     fockVec = cdiis.CalcFockVec(coeffs, fockVecSet);
     disp(['mix ', class(ediis), ' ', class(cdiis)]);

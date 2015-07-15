@@ -11,7 +11,7 @@ classdef LCIIS < handle
         tempTensorForGrad;
         tempTensorForHess;
         
-        errorVectors;
+        minHessRcond = 1e-25;
         
     end
     
@@ -28,16 +28,14 @@ classdef LCIIS < handle
             if(strcmpi(type, 'r'))
                 obj.fockVectors{1} = zeros(lenVec, numVectors);
                 obj.densVectors{1} = zeros(lenVec, numVectors);
-                obj.errorVectors = zeros(lenVec, numVectors);
             elseif(strcmpi(type, 'u'))
                 obj.fockVectors{1} = zeros(lenVec, numVectors);
                 obj.densVectors{1} = zeros(lenVec, numVectors);
                 obj.fockVectors{2} = zeros(lenVec, numVectors);
                 obj.densVectors{2} = zeros(lenVec, numVectors);
-                obj.errorVectors = zeros(2*lenVec, numVectors);
             end
             obj.S_Half = sqrtm(overlapMatrix);
-            obj.inv_S_Half = obj.S_Half \ eye(size(obj.S_Half));
+            obj.inv_S_Half = inv(obj.S_Half);
         end
         
         function Push(obj, newFockVector, newDensVector)
@@ -50,34 +48,12 @@ classdef LCIIS < handle
                 obj.densVectors{spin}(:, 1:end-1) = obj.densVectors{spin}(:, 2:end);
                 obj.densVectors{spin}(:, end) = newDensVector(:, spin);
             end
-            
-            % push new commutator error in
-            obj.errorVectors(:, 1:end-1) = obj.errorVectors(:, 2:end);
-            errorVec = [];
-            for spin = 1:length(obj.fockVectors)
-                FtDt = obj.inv_S_Half ...
-                    * reshape(newFockVector(:, spin), sqrt(length(newFockVector(:, spin))), []) ...
-                    * reshape(newDensVector(:, spin), sqrt(length(newDensVector(:, spin))), []) ...
-                    * obj.S_Half;
-                errorVec = [errorVec; reshape(FtDt - FtDt', [], 1)]; %#ok
-            end
-            obj.errorVectors(:, end) = errorVec;
         end
         
-        function [optFockVector, coeffs, useFockVectors] = OptFockVector(obj)
-            numVectors = sum(sum(obj.densVectors{1}.^2) ~= 0);
-            [optFockVector, coeffs, useFockVectors] = obj.SolveForNumVectors(numVectors);
-            while(isnan(coeffs))
-                numVectors = numVectors - 1;
-                [optFockVector, coeffs, useFockVectors] = obj.SolveForNumVectors(numVectors);
+        function [optFockVector, coeffs, useFockVectors] = OptFockVector(obj, numVectors)
+            if(nargin < 2)
+                numVectors = sum(sum(obj.densVectors{1}.^2) ~= 0);
             end
-        end
-                
-    end
-    
-    methods (Access = private)
-        
-        function [optFockVector, coeffs, useFockVectors] = SolveForNumVectors(obj, numVectors)
             useFockVectors = cell(1, length(obj.fockVectors));
             optFockVector = zeros(size(obj.fockVectors{1}, 1), length(obj.fockVectors));
             if(numVectors == 0 || numVectors == 1)
@@ -100,16 +76,16 @@ classdef LCIIS < handle
             end
             
             % start from CDIIS coefficients
-            useErrorVectors = obj.errorVectors(:, end-numVectors+1:end);
             onesVec = ones(numVectors, 1);
-            hessian = [ ...
-                useErrorVectors'*useErrorVectors, onesVec; ...
-                onesVec', 0];
+            hessian = zeros(numVectors, numVectors);
+            for errorI = 1:numVectors
+                for errorJ = 1:numVectors
+                    hessian(errorI, errorJ) = tensor(errorI, errorI, errorJ, errorJ);
+                end
+            end
+            hessian = [hessian, onesVec; onesVec', 0];
             diisCoefficients = hessian \ [zeros(numVectors,1); 1];
             iniCoeffs = diisCoefficients(1:end-1);
-            
-%             iniCoeffs = zeros(numVectors, 1);
-%             iniCoeffs(end) = 1;
             
             coeffs = obj.NewtonSolver(tensor, iniCoeffs);
             
@@ -120,8 +96,16 @@ classdef LCIIS < handle
             if(length(useFockVectors) == 1)
                 useFockVectors = useFockVectors{1};
             end
-%             disp(coeffs');
+            
+            if(isnan(coeffs))
+                numVectors = numVectors - 1;
+                [optFockVector, coeffs, useFockVectors] = obj.OptFockVector(numVectors);
+            end
         end
+                
+    end
+    
+    methods (Access = private)
         
         function tensor = CalcTensor(obj, useFockVectors, useDensVectors)
             nbf = sqrt(size(useFockVectors, 1));
@@ -138,7 +122,7 @@ classdef LCIIS < handle
             tensor = reshape(error*error', numVectors, numVectors, numVectors, numVectors);
         end
         
-        function [value, grad, hess] = Target(obj, coeffs)
+        function [value, grad, hess] = ValGradHess(obj, coeffs)
             nVecs = length(coeffs);
             
             value = reshape(obj.tempTensor, [], nVecs) * coeffs;
@@ -172,12 +156,12 @@ classdef LCIIS < handle
                 permute(tensor, [3 1 2 4]) + permute(tensor, [3 2 1 4]) + permute(tensor, [3 4 1 2]) + ...
                 permute(tensor, [4 1 2 3]) + permute(tensor, [4 2 1 3]) + permute(tensor, [4 3 1 2]);
             for iter = 1:100
-                [val, grad, hess] = obj.Target(coeffs);
+                [val, grad, hess] = obj.ValGradHess(coeffs);
                 lambda = -4 * val;
                 gradL = [grad + lambda; 0];
                 onesVec = ones(length(coeffs), 1);
                 hessL = [hess, onesVec; onesVec', 0];
-                if(rcond(hessL) < 1e-20)
+                if(rcond(hessL) < obj.minHessRcond)
                     disp('Inversion failed')
                     coeffs = NaN .* iniCoeffs;
                     return;
@@ -192,7 +176,6 @@ classdef LCIIS < handle
             
             if(iter > 99)
                 disp('Not converged');
-%                 coeffs = iniCoeffs;
             end
         end
         

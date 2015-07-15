@@ -8,6 +8,8 @@ classdef CDIIS < handle
         S_Half;
         inv_S_Half;
         
+        minHessRcond = 1e-25;
+        
     end
     
     methods
@@ -28,7 +30,6 @@ classdef CDIIS < handle
                 obj.fockVectors{2} = zeros(lenVec, numVectors);
                 obj.errorVectors = zeros(2*lenVec, numVectors);
             end
-            
             obj.S_Half = sqrtm(overlapMatrix);
             obj.inv_S_Half = inv(obj.S_Half);
         end
@@ -53,35 +54,10 @@ classdef CDIIS < handle
             obj.errorVectors(:, end) = errorVec;
         end
         
-        function [optFockVector, coeffs, useFockVectors] = OptFockVector(obj)
-            numVectors = sum(sum(obj.errorVectors.^2) ~= 0);
-            [optFockVector, coeffs, useFockVectors] = obj.SolveForNumVectors(numVectors);
-            while(isnan(coeffs))
-                numVectors = numVectors - 1;
-                [optFockVector, coeffs, useFockVectors] = obj.SolveForNumVectors(numVectors);
+        function [optFockVector, coeffs, useFockVectors] = OptFockVector(obj, numVectors)
+            if(nargin < 2)
+                numVectors = sum(sum(obj.errorVectors.^2) ~= 0);
             end
-        end
-        
-        function optFockVector = CalcFockVec(obj, coeffs, useFockVectors)
-            optFockVector = zeros(size(obj.fockVectors{1}, 1), length(obj.fockVectors));
-            if(length(obj.fockVectors) == 1)
-                newCell{1} = useFockVectors;
-                useFockVectors = newCell;
-            end
-            for spin = 1:length(obj.fockVectors)
-                optFockVector(:, spin) = useFockVectors{spin} * coeffs;
-            end
-        end
-        
-        function maxError = MaxError(obj)
-            maxError = max(abs(obj.errorVectors(:, end)));
-        end
-        
-    end
-    
-    methods (Access = private)
-        
-        function [optFockVector, coeffs, useFockVectors] = SolveForNumVectors(obj, numVectors)
             useFockVectors = cell(1, length(obj.fockVectors));
             optFockVector = zeros(size(obj.fockVectors{1}, 1), length(obj.fockVectors));
             if(numVectors == 0 || numVectors == 1)
@@ -104,7 +80,7 @@ classdef CDIIS < handle
             hessian = [ ...
                 useErrorVectors'*useErrorVectors, onesVec; ...
                 onesVec', 0];
-            if(rcond(hessian) < 1e-20)
+            if(rcond(hessian) < obj.minHessRcond)
                 disp('Inversion failed')
                 diisCoefficients = NaN .* [zeros(numVectors,1); 1];
             else
@@ -120,7 +96,25 @@ classdef CDIIS < handle
                 useFockVectors = useFockVectors{1};
             end
             
-%             disp(coeffs');
+            if(isnan(coeffs))
+                numVectors = numVectors - 1;
+                [optFockVector, coeffs, useFockVectors] = obj.OptFockVector(numVectors);
+            end
+        end
+        
+        function optFockVector = CalcFockVec(obj, coeffs, useFockVectors)
+            optFockVector = zeros(size(obj.fockVectors{1}, 1), length(obj.fockVectors));
+            if(length(obj.fockVectors) == 1)
+                newCell{1} = useFockVectors;
+                useFockVectors = newCell;
+            end
+            for spin = 1:length(obj.fockVectors)
+                optFockVector(:, spin) = useFockVectors{spin} * coeffs;
+            end
+        end
+        
+        function maxError = MaxError(obj)
+            maxError = max(abs(obj.errorVectors(:, end)));
         end
         
     end
