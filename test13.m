@@ -51,20 +51,17 @@ cart = [...
 import SCF.*;
 
 mol = Molecule(cart);
-basisSet = '6-31g*';
+basisSet = '6-31g';
 dft = 'b3lyp';
-diisType = 'L20';
+diisType = 'ECe20';
 
-matpsi = MatPsi2(mol.cartesian, basisSet, 0, 1);
-% matpsi.Settings_SetMaxNumCPUCores(2);
-% matpsi.SCF_SetSCFType('uhf');
-matpsi.JK_Initialize('directjk');
+matpsi = MatPsi2(mol.cartesian, basisSet, 0, 3);
 
 % scf = RHF(RHF.MatPsi2Interface(matpsi));
-scf = RKS(RHF.MatPsi2Interface(matpsi), dft);
+scf = UKS(RHF.MatPsi2Interface(matpsi), dft);
 [guessDensity, guessOrbital] = scf.CoreGuess();
 
-[ener1, energySet1, iter1] = scf.SCF(guessOrbital, diisType);
+[ener1, energySet1, densVecSet1, iter1] = scf.SCF(guessOrbital, diisType);
 
 % info.chargeMult = [0 1];
 % info.cartesian = cart;
@@ -76,10 +73,10 @@ scf = RKS(RHF.MatPsi2Interface(matpsi), dft);
 
 fprintf('%0.8f  %d \n',ener1, iter1);
 
-figure();
-hold();
-plot(log10(abs(energySet1 - ener1)), 'r');
-scatter(1:length(energySet1), log10(abs(energySet1 - ener1)), 72, 'square', 'r', 'filled');
+% figure();
+% hold();
+% plot(log10(abs(energySet1 - ener1)), 'r');
+% scatter(1:length(energySet1), log10(abs(energySet1 - ener1)), 72, 'square', 'r', 'filled');
 
 
 
