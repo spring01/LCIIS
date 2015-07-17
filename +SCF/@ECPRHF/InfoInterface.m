@@ -4,8 +4,8 @@ matpsi2 = info.matpsi2;
 info.chargeMult = matpsi2.Molecule_ChargeMult();
 SCF.ECPRHF.RunG09(info);
 
-ecpMat = SCF.ECPRHF.G09ReadECPMatrix();
 order = G09ToPsi4BasisOrder(matpsi2.BasisSet_ShellNumFunctions());
+ecpMat = SCF.ECPRHF.G09ReadMatrix('ecpInt');
 ecpMat = ecpMat(order, order);
 
 properties.overlapMat = matpsi2.Integrals_Overlap();

@@ -7,6 +7,12 @@ classdef ECPUHF < SCF.UHF & SCF.ECPRHF
             obj = obj@SCF.UHF(properties);
         end
         
+        function [densVec, orbital] = HarrisGuess(obj)
+            orbital = {SCF.ECPRHF.G09ReadMatrix('HarrisGuessMOAlpha'), ...
+                SCF.ECPRHF.G09ReadMatrix('HarrisGuessMOBeta')};
+            densVec = obj.OrbToDensVec(orbital);
+        end
+        
     end
     
 end

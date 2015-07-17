@@ -1,13 +1,24 @@
-function ecpMat = G09ReadECPMatrix()
+function matrix = G09ReadMatrix(type)
+if(strcmpi(type, 'ecpInt'))
+    beginning = ' ECP Integrals: ';
+    ending = ' SVDSVc ';
+elseif(strcmpi(type, 'HarrisGuessMOAlpha'))
+    beginning = ' Guess MO coefficients \(alpha\):';
+    ending = ' Guess MO coefficients \(beta\):';
+elseif(strcmpi(type, 'HarrisGuessMOBeta'))
+    beginning = ' Guess MO coefficients \(beta\):';
+    ending = ' Initial guess ';
+end
+
+matrix = [];
 logFile = fopen('temp.log');
 currLine = '';
-ecpMat = [];
 while(ischar(currLine))
     blocks = {};
     iBlock = 0;
-    if(~isempty(regexp(currLine, ' ECP Integrals: ', 'ONCE')))
+    if(~isempty(regexp(currLine, beginning, 'ONCE')))
         readLine = fgetl(logFile);
-        while(isempty(regexp(readLine, ' SVDSVc ', 'ONCE')))
+        while(isempty(regexp(readLine, ending, 'ONCE')))
             allMatches = regexp(readLine, '[+-]?[0-9]+.[0-9]+D[+-][0-9][0-9]', 'match');
             if(~isempty(allMatches)) % rowNum with doubles
                 numsInALine = zeros(1, numOfNums);
@@ -29,7 +40,7 @@ while(ischar(currLine))
         if(triu(currMat, 1) == 0)
             currMat = currMat + currMat' - diag(diag(currMat));
         end
-        ecpMat = currMat;
+        matrix = currMat;
         break;
     end
     currLine = fgetl(logFile);

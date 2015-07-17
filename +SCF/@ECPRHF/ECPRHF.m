@@ -6,6 +6,11 @@ classdef ECPRHF < SCF.RHF
             obj@SCF.RHF(properties);
         end
         
+        function [densVec, orbital] = HarrisGuess(obj)
+            orbital = SCF.ECPRHF.G09ReadMatrix('HarrisGuessMOAlpha');
+            densVec = obj.OrbToDensVec(orbital);
+        end
+        
     end
     
     methods (Static)
@@ -16,7 +21,7 @@ classdef ECPRHF < SCF.RHF
     
     methods (Static, Access = protected)
         
-        ecpMat = G09ReadECPMatrix();
+        matrix = G09ReadMatrix(type);
         
         function RunG09(info)
             fileStr = SCF.ECPRHF.G09InputStr(info);
