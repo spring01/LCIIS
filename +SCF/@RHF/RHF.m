@@ -87,16 +87,22 @@ classdef RHF < handle
             properties.coreHamilt = matpsi2.Integrals_Kinetic() + matpsi2.Integrals_Potential();
             properties.nucRepEnergy = matpsi2.Molecule_NucRepEnergy();
             properties.matpsi2 = matpsi2;
-            
             chargeMult = matpsi2.Molecule_ChargeMult();
-            mult = chargeMult(2);
-            numTotalElectrons = matpsi2.Molecule_NumElectrons();
+            properties.numElectrons = SCF.RHF.CalcNumElectrons( ...
+                matpsi2.Molecule_NumElectrons(), chargeMult(2));
+        end
+        
+    end
+    
+    methods(Static, Access = protected)
+        
+        function numElectrons = CalcNumElectrons(numTotalElectrons, mult)
             numAlphaElectrons = (numTotalElectrons + mult - 1) / 2;
             if(rem(numAlphaElectrons, 1) ~= 0)
                 throw(MException('RHF:MatPsi2Interface', 'Number of electrons and multiplicity do not agree'));
             end
             numBetaElectrons = numTotalElectrons - numAlphaElectrons;
-            properties.numElectrons = [numAlphaElectrons; numBetaElectrons];
+            numElectrons = [numAlphaElectrons; numBetaElectrons];
         end
         
     end
