@@ -4,7 +4,7 @@ matpsi2 = info.matpsi2;
 info.chargeMult = matpsi2.Molecule_ChargeMult();
 SCF.ECPRHF.RunG09(info);
 
-order = G09ToPsi4BasisOrder(matpsi2.BasisSet_ShellNumFunctions());
+order = SCF.ECPRHF.G09ToPsi4BasisOrder(matpsi2.BasisSet_ShellNumFunctions());
 ecpMat = SCF.ECPRHF.G09ReadMatrix('ecpInt');
 ecpMat = ecpMat(order, order);
 
@@ -38,18 +38,6 @@ for i = 1:length(atomNumbers)
         numCoreElectrons = 78;
     end
     atomNumbers(i) = atomNumbers(i) - numCoreElectrons;
-end
-end
-
-function order = G09ToPsi4BasisOrder(shellNfuncs)
-shell2startFunc = cumsum([1 shellNfuncs]);
-shell2startFunc = shell2startFunc(1:end-1);
-order = 1:sum(shellNfuncs);
-for i = 1:length(shellNfuncs)
-    if(shellNfuncs(i) == 3) % 3p; need to change [z x y] -> [x y z]
-        order((1:3)+shell2startFunc(i)-1) = ...
-            order([3 1 2]+shell2startFunc(i)-1);
-    end
 end
 end
 
