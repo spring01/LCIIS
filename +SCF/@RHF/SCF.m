@@ -55,6 +55,8 @@ for iter = 1:obj.maxSCFIter
             fockVec = ECe(ediis6, cdiis6, abs(energy - oldEnergy));
         case('ECe20')
             fockVec = ECe(ediis20, cdiis20, abs(energy - oldEnergy));
+        case('LCe20')
+            fockVec = ECe(lciis20, cdiis20, abs(energy - oldEnergy));
         case('L20')
             fockVec = lciis20.OptFockVector();
             disp('lciis(20)');
