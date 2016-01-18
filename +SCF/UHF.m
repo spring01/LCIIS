@@ -61,7 +61,7 @@ classdef UHF < SCF.RHF
         end
         
         function lciis = LCIIS(obj, numVectors)
-            lciis = SCF.LCIIS(obj.overlapMat, numVectors, 'u');
+            lciis = SCF.ULCIIS(obj.overlapMat, numVectors);
         end
         
     end

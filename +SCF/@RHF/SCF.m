@@ -18,6 +18,7 @@ maxErrSet = [];
 energySet = [];
 densVecSet = {};
 for iter = 1:obj.maxSCFIter
+    tic
     oldEnergy = energy;
     fockVec = obj.OrbToFockVec(orbital);
     energy = obj.SCFEnergy(fockVec, densVec);
@@ -104,6 +105,7 @@ for iter = 1:obj.maxSCFIter
     end
     
     disp(['done iter ', num2str(iter)])
+    toc
 end
 
 end

@@ -50,9 +50,9 @@ classdef RHF < handle
         
         function [orbital, orbEigValues] = SolveFockVec(~, fockVec, inv_S_Half)
             fockMat = reshape(fockVec, sqrt(numel(fockVec)), []);
-            fockMat = inv_S_Half' * fockMat * inv_S_Half;
-            fockMat = (fockMat + fockMat') ./ 2;
-            [orbitalOtho, orbEigValues] = eig(fockMat);
+            orthoFockMat = inv_S_Half' * fockMat * inv_S_Half;
+            orthoFockMat = (orthoFockMat + orthoFockMat') ./ 2;
+            [orbitalOtho, orbEigValues] = eig(orthoFockMat);
             [orbEigValues, ascend_order] = sort(diag(orbEigValues));
             orbitalOtho = orbitalOtho(:, ascend_order);
             orbital = inv_S_Half * orbitalOtho;
@@ -75,7 +75,7 @@ classdef RHF < handle
         end
         
         function lciis = LCIIS(obj, numVectors)
-            lciis = SCF.LCIIS(obj.overlapMat, numVectors, 'r');
+            lciis = SCF.RLCIIS(obj.overlapMat, numVectors);
         end
         
     end

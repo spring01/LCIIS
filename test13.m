@@ -51,9 +51,10 @@ cart = [...
 import SCF.*;
 
 mol = Molecule(cart);
+% basisSet = '../../3-21g';
 basisSet = '6-31g';
 dft = 'b3lyp';
-diisType = 'ECe20';
+diisType = 'L20';
 
 matpsi = MatPsi2(mol.cartesian, basisSet, 0, 3);
 
@@ -61,7 +62,9 @@ matpsi = MatPsi2(mol.cartesian, basisSet, 0, 3);
 scf = UKS(RHF.MatPsi2Interface(matpsi), dft);
 [guessDensity, guessOrbital] = scf.CoreGuess();
 
+tic
 [ener1, energySet1, densVecSet1, iter1] = scf.SCF(guessOrbital, diisType);
+toc
 
 % info.chargeMult = [0 1];
 % info.cartesian = cart;
