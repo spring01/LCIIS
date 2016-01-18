@@ -4,13 +4,13 @@ classdef RLCIIS < handle
         
         pairs;
         comms;
+        sqrtmS;
+        invSqrtmS;
         
     end
     
     properties (Access = private)
         
-        sqrtmS;
-        invSqrtmS;
         maxNumPairs;
         pairsFull;
         bigMat;
@@ -36,8 +36,7 @@ classdef RLCIIS < handle
         end
         
         function Push(self, newFockVector, newDensVector)
-            newPair.fockVector = newFockVector;
-            newPair.densVector = newDensVector;
+            newPair = self.WrapFockDensInPair(newFockVector, newDensVector);
             if length(self.pairs) == size(self.comms, 1)
                 self.pairs(1:end-1) = self.pairs(2:end);
                 self.pairs{end} = newPair;
@@ -64,17 +63,27 @@ classdef RLCIIS < handle
     
     methods (Access = protected)
         
-        function comm = CommBetween(self, ind1, ind2)
-            comm = self.Commutator(self.pairs{ind1}.fockVector, ...
-                                   self.pairs{ind2}.densVector);
+        function pair = WrapFockDensInPair(self, newFockVector, newDensVector)
+            % This function defines interface.
+            % In restricted SCF, newFockVector stores the Fock matrix, and
+            % newDensVector stores the density matrix, both as an nbf^2 by 1
+            % vector.
+            nbf = size(self.sqrtmS, 1);
+            pair.fockVector = newFockVector;
+            fockMat = reshape(newFockVector, nbf, nbf);
+            densMat = reshape(newDensVector, nbf, nbf);
+            pair.fockOrthoMatrix = self.invSqrtmS * fockMat * self.invSqrtmS;
+            pair.densOrthoMatrix = self.sqrtmS * densMat * self.sqrtmS;
         end
         
-        function comm = Commutator(self, singleFockVector, singleDensVector)
-            nbf = size(self.sqrtmS, 1);
-            fockMat = reshape(singleFockVector, nbf, nbf);
-            densMat = reshape(singleDensVector, nbf, nbf);
-            fockDens = self.invSqrtmS * fockMat * densMat * self.sqrtmS;
-            comm = reshape(fockDens - fockDens', [], 1);
+        function comm = CommBetween(self, ind1, ind2)
+            comm = self.Commutator(self.pairs{ind1}.fockOrthoMatrix, ...
+                                   self.pairs{ind2}.densOrthoMatrix);
+        end
+        
+        function comm = Commutator(~, fockOrthoMatrix, densOrthoMatrix)
+            fockOrthoDensOrtho = fockOrthoMatrix * densOrthoMatrix;
+            comm = reshape(fockOrthoDensOrtho - fockOrthoDensOrtho', [], 1);
         end
         
         function [newFockVector, fockVectors] = ExtrapolateFock(self, coeffVec)
