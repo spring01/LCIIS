@@ -18,20 +18,11 @@ classdef ULCIIS < SCF.RLCIIS
             % vectors; newFockVector(:, 1) is the alpha Fock matrix, and
             % newFockVector(:, 2) is the beta Fock matrix; so as
             % newDensVector.
-            nbf = size(self.sqrtmS, 1);
             pair.fockVector = newFockVector;
-            fockOrthoMat = cell(1, size(newDensVector, 2));
-            for i = 1:size(newFockVector, 2)
-                fockMat = reshape(newFockVector(:, i), nbf, nbf);
-                fockOrthoMat{i} = self.invSqrtmS * fockMat * self.invSqrtmS;
-            end
-            densOrthoMat = cell(1, size(newDensVector, 2));
-            for i = 1:size(newDensVector, 2)
-                densMat = reshape(newDensVector(:, i), nbf, nbf);
-                densOrthoMat{i} = self.sqrtmS * densMat * self.sqrtmS;
-            end
-            pair.fockOrthoMatrices = fockOrthoMat;
-            pair.densOrthoMatrices = densOrthoMat;
+            pair.fockOrthoMatrices{1} = self.FockOrthoMat(newFockVector(:, 1));
+            pair.fockOrthoMatrices{2} = self.FockOrthoMat(newFockVector(:, 2));
+            pair.densOrthoMatrices{1} = self.DensOrthoMat(newDensVector(:, 1));
+            pair.densOrthoMatrices{2} = self.DensOrthoMat(newDensVector(:, 2));
         end
         
         function comm = CommBetween(self, ind1, ind2)

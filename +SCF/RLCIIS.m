@@ -4,12 +4,13 @@ classdef RLCIIS < handle
         
         pairs;
         comms;
-        sqrtmS;
-        invSqrtmS;
         
     end
     
     properties (Access = private)
+        
+        sqrtmS;
+        invSqrtmS;
         
         maxNumPairs;
         pairsFull;
@@ -68,12 +69,19 @@ classdef RLCIIS < handle
             % In restricted SCF, newFockVector stores the Fock matrix, and
             % newDensVector stores the density matrix, both as an nbf^2 by 1
             % vector.
-            nbf = size(self.sqrtmS, 1);
             pair.fockVector = newFockVector;
-            fockMat = reshape(newFockVector, nbf, nbf);
-            densMat = reshape(newDensVector, nbf, nbf);
-            pair.fockOrthoMatrix = self.invSqrtmS * fockMat * self.invSqrtmS;
-            pair.densOrthoMatrix = self.sqrtmS * densMat * self.sqrtmS;
+            pair.fockOrthoMatrix = self.FockOrthoMat(newFockVector);
+            pair.densOrthoMatrix = self.DensOrthoMat(newDensVector);
+        end
+        
+        function fockOrthoMat = FockOrthoMat(self, singleFockVector)
+            nbf = size(self.invSqrtmS, 1);
+            fockOrthoMat = self.invSqrtmS * reshape(singleFockVector, nbf, nbf);
+        end
+        
+        function densOrthoMat = DensOrthoMat(self, singleDensVector)
+            nbf = size(self.sqrtmS, 1);
+            densOrthoMat = reshape(singleDensVector, nbf, nbf) * self.sqrtmS;
         end
         
         function comm = CommBetween(self, ind1, ind2)

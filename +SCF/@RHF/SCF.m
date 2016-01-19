@@ -1,27 +1,35 @@
-function [energy, energySet, densVecSet, iter, orbital] = SCF(obj, guessOrbital, diisType)
-inv_S_Half = inv(sqrtm(obj.overlapMat));
-orbital = guessOrbital;
-densVec = obj.OrbToDensVec(orbital);
-
-% diis
-cdiis20 = obj.CDIIS(20);
-ediis20 = obj.EDIIS(20);
-lciis20 = obj.LCIIS(20);
-cdiis6 = obj.CDIIS(6);
-ediis6 = obj.EDIIS(6);
-lciis6 = obj.LCIIS(6);
-adiis20 = obj.ADIIS(20);
+function output = SCF(self, guess, diisType)
+% initialize diis
+cdiis20 = self.CDIIS(20);
+ediis20 = self.EDIIS(20);
+lciis20 = self.LCIIS(20);
+cdiis6 = self.CDIIS(6);
+ediis6 = self.EDIIS(6);
+lciis6 = self.LCIIS(6);
+adiis20 = self.ADIIS(20);
 
 % initialize some variables
 energy = 0;
 maxErrSet = [];
 energySet = [];
 densVecSet = {};
-for iter = 1:obj.maxSCFIter
+for iter = 1:self.maxSCFIter
     tic
     oldEnergy = energy;
-    fockVec = obj.OrbToFockVec(orbital);
-    energy = obj.SCFEnergy(fockVec, densVec);
+    
+    if iter == 1
+        if isfield(guess, 'guessOrbital')
+            orbital = guess.guessOrbital;
+            densVec = self.OrbToDensVec(orbital);
+            fockVec = self.OrbToFockVec(orbital);
+        elseif isfield(guess, 'guessDensity')
+            densVec = reshape(guess.guessDensity, [], 1);
+            fockVec = self.DensVecToFockVec(densVec);
+        end
+    else
+        fockVec = self.OrbToFockVec(orbital);
+    end
+    energy = self.SCFEnergy(fockVec, densVec);
     
     % diis extrapolate Fock matrix
     cdiis20.Push(fockVec, densVec);
@@ -89,8 +97,8 @@ for iter = 1:obj.maxSCFIter
     fprintf('%0.8f\n',energy);
     
     oldDensVec = densVec;
-    orbital = obj.SolveFockVec(fockVec, inv_S_Half);
-    densVec = obj.OrbToDensVec(orbital);
+    orbital = self.SolveFockVec(fockVec);
+    densVec = self.OrbToDensVec(orbital);
     
     densVecSet{iter} = densVec; %#ok
     
@@ -98,9 +106,9 @@ for iter = 1:obj.maxSCFIter
     disp(mean(max(abs(densVec - oldDensVec))));
     disp(abs(energy - oldEnergy));
     
-    if(mean(sqrt(mean((densVec - oldDensVec).^2))) < obj.RMSDensityThreshold ...
-            && mean(max(abs(densVec - oldDensVec))) < obj.MaxDensityThreshold ...
-            && abs(energy - oldEnergy) < obj.EnergyThreshold)
+    if mean(sqrt(mean((densVec - oldDensVec).^2))) < self.RMSDensityThreshold ...
+            && mean(max(abs(densVec - oldDensVec))) < self.MaxDensityThreshold ...
+            && abs(energy - oldEnergy) < self.EnergyThreshold
         break;
     end
     
@@ -108,38 +116,44 @@ for iter = 1:obj.maxSCFIter
     toc
 end
 
+output.energy = energy;
+output.energySet = energySet;
+output.densVecSet = densVecSet;
+output.iter = iter;
+output.orbital = orbital;
+
 end
 
 
 function [fockVec, maxErrSet] = ECmix(ediis, cdiis, maxErr, maxErrSet, iter)
-if(maxErr ~= 0)
+if maxErr ~= 0
     maxErrSet(iter) = maxErr;
 else
     maxErrSet(iter) = 1;
 end
-if(maxErr > 1e-1 || maxErr > 1.1 * min(maxErrSet))
+if maxErr > 1e-1 || maxErr > 1.1 * min(maxErrSet)
     fockVec = ediis.OptFockVector();
     disp(class(ediis));
-elseif(maxErr < 1e-4)
+elseif maxErr < 1e-4
     fockVec = cdiis.OptFockVector();
     disp(class(cdiis));
 else
     [~, cdiisCoeffs, fockVecSet] = cdiis.OptFockVector();
     [~, ediisCoeffs, ~] = ediis.OptFockVector(length(cdiisCoeffs));
-    coeffs = 10.*maxErr .* ediisCoeffs + (1 - 10.*maxErr) .* cdiisCoeffs;
+    coeffs = 10 .* maxErr .* ediisCoeffs + (1 - 10 .* maxErr) .* cdiisCoeffs;
     fockVec = cdiis.CalcFockVec(coeffs, fockVecSet);
     disp(['mix ', class(ediis), ' ', class(cdiis)]);
 end
 end
 
 function [fockVec, maxErrSet] = EC(ediis, cdiis, maxErr, maxErrSet, iter)
-if(maxErr ~= 0)
+if maxErr ~= 0
     maxErrSet(iter) = maxErr;
 else
     maxErrSet(iter) = 1;
 end
 % if(maxErr > 1e-5 || maxErr > 1.1 * min(maxErrSet))
-if(maxErr > 1e-2)
+if maxErr > 1e-2
     fockVec = ediis.OptFockVector();
     disp(class(ediis));
 else
@@ -149,7 +163,7 @@ end
 end
 
 function fockVec = ECe(ediis, cdiis, energyDiff)
-if(energyDiff > 1e-3)
+if energyDiff > 1e-3
     fockVec = ediis.OptFockVector();
     disp(class(ediis));
 else
