@@ -9,13 +9,13 @@ classdef RKS < SCF.RHF
     
     methods
         
-        function obj = RKS(properties, dft)
-            obj = obj@SCF.RHF(properties);
-            obj.matpsi2.DFT_Initialize(dft);
-            if(strcmpi(dft, 'b3lyp') || strcmpi(dft, 'b3lypv5'))
-                obj.hfExcCoeff = 0.2;
+        function self = RKS(info)
+            self = self@SCF.RHF(info);
+            self.matpsi.DFT_Initialize(info.dft);
+            if(strcmpi(info.dft, 'b3lyp') || strcmpi(info.dft, 'b3lypv5'))
+                self.hfExcCoeff = 0.2;
             else
-                obj.hfExcCoeff = 0;
+                self.hfExcCoeff = 0;
             end
         end
         
@@ -23,23 +23,36 @@ classdef RKS < SCF.RHF
     
     methods (Access = protected)
         
-        function fockVec = OrbToFockVec(obj, orbital)
-            occOrb = orbital(:, 1:obj.numElectrons(1));
-            obj.currentV = obj.matpsi2.DFT_OccOrbToV(occOrb);            
-            if(obj.hfExcCoeff == 0) % pure DFT, do not need K
-                gMat = 2 .* obj.matpsi2.JK_OccOrbToJ(occOrb) + obj.currentV;
+        function fockVec = OrbToFockVec(self, orbital)
+            occOrb = orbital(:, 1:self.numElectrons(1));
+            self.currentV = self.matpsi.DFT_OccOrbToV(occOrb);            
+            if self.hfExcCoeff == 0 % pure DFT, do not need K
+                gMat = 2 .* self.matpsi.JK_OccOrbToJ(occOrb) + self.currentV;
             else % hybrid, do need K
-                obj.matpsi2.JK_CalcAllFromOccOrb(occOrb);
-                gMat = 2 .* obj.matpsi2.JK_RetrieveJ() + obj.currentV ...
-                    - obj.hfExcCoeff * obj.matpsi2.JK_RetrieveK();
+                self.matpsi.JK_CalcAllFromOccOrb(occOrb);
+                gMat = 2 .* self.matpsi.JK_RetrieveJ() + self.currentV ...
+                     - self.hfExcCoeff .* self.matpsi.JK_RetrieveK();
             end
-            fockVec = reshape(obj.coreHamilt, [], 1) + reshape(gMat, [], 1);
+            fockVec = reshape(self.coreHamilt + gMat, [], 1);
         end
         
-        function energy = SCFEnergy(obj, fockVec, densVec)
-            energy = obj.SCFEnergy@SCF.RHF(fockVec, densVec) ...
-                - reshape(obj.currentV, 1, []) * densVec ...
-                + obj.matpsi2.DFT_EnergyXC();
+        function fockVec = DensVecToFockVec(self, densVec)
+            densMat = reshape(densVec, size(self.overlapMat));
+            self.currentV = self.matpsi.DFT_DensToV(densMat);            
+            if self.hfExcCoeff == 0 % pure DFT, do not need K
+                gMat = 2 .* self.matpsi.JK_DensToJ(densMat) + self.currentV;
+            else % hybrid, do need K
+                self.matpsi.JK_CalcAllFromDens(densMat);
+                gMat = 2 .* self.matpsi.JK_RetrieveJ() + self.currentV ...
+                     - self.hfExcCoeff .* self.matpsi.JK_RetrieveK();
+            end
+            fockVec = reshape(self.coreHamilt + gMat, [], 1);
+        end
+        
+        function energy = SCFEnergy(self, fockVec, densVec)
+            energy = self.SCFEnergy@SCF.RHF(fockVec, densVec) ...
+                - reshape(self.currentV, 1, []) * densVec ...
+                + self.matpsi.DFT_EnergyXC();
         end
         
     end

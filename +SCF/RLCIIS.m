@@ -13,11 +13,12 @@ classdef RLCIIS < handle
         invSqrtmS;
         
         maxNumPairs;
+        firstUse;
         pairsFull;
         bigMat;
         
         maxIterNewton = 200;
-        minHessRcond = 1e-25;
+        minHessRcond = 1e-20;
         gradNormThres = 1e-12;
         
     end
@@ -34,11 +35,12 @@ classdef RLCIIS < handle
             self.bigMat = zeros(maxNumPairs^2, maxNumPairs^2);
             self.sqrtmS = sqrtm(overlapMatrix);
             self.invSqrtmS = inv(self.sqrtmS);
+            self.firstUse = true;
         end
         
-        function Push(self, newFockVector, newDensVector)
-            newPair = self.WrapFockDensInPair(newFockVector, newDensVector);
-            if length(self.pairs) == size(self.comms, 1)
+        function Push(self, fockVector, densVector)
+            newPair = self.CreatePair(fockVector, densVector);
+            if length(self.pairs) == self.maxNumPairs
                 self.pairs(1:end-1) = self.pairs(2:end);
                 self.pairs{end} = newPair;
                 self.pairsFull = true;
@@ -46,16 +48,23 @@ classdef RLCIIS < handle
                 self.pairs{end+1} = newPair;
                 self.pairsFull = false;
             end
+            
+            if ~self.firstUse
+                if self.pairsFull
+                    self.PreUpdateFull();
+                else
+                    self.PreUpdateNotFull();
+                end
+                self.UpdateComms();
+                self.UpdateBigMat();
+            end
         end
         
         function [optFockVector, coeffVec, useFockVectors] = OptFockVector(self)
-            if self.pairsFull
-                self.PreUpdateFull();
-            else
-                self.PreUpdateNotFull();
+            if self.firstUse
+                self.CalcTensor();
+                self.firstUse = false;
             end
-            self.UpdateComms();
-            self.UpdateBigMat();
             coeffVec = self.FindCoeffVec();
             [optFockVector, useFockVectors] = self.ExtrapolateFock(coeffVec);
         end
@@ -64,14 +73,14 @@ classdef RLCIIS < handle
     
     methods (Access = protected)
         
-        function pair = WrapFockDensInPair(self, newFockVector, newDensVector)
+        function pair = CreatePair(self, fockVector, densVector)
             % This function defines interface.
             % In restricted SCF, newFockVector stores the Fock matrix, and
             % newDensVector stores the density matrix, both as an nbf^2 by 1
             % vector.
-            pair.fockVector = newFockVector;
-            pair.fockOrthoMatrix = self.FockOrthoMat(newFockVector);
-            pair.densOrthoMatrix = self.DensOrthoMat(newDensVector);
+            pair.fockVector = fockVector;
+            pair.fockOrthoMatrix = self.FockOrthoMat(fockVector);
+            pair.densOrthoMatrix = self.DensOrthoMat(densVector);
         end
         
         function fockOrthoMat = FockOrthoMat(self, singleFockVector)
@@ -107,6 +116,17 @@ classdef RLCIIS < handle
     end
     
     methods (Access = private)
+        
+        function CalcTensor(self)
+            numPairs = length(self.pairs);
+            for i = 1:numPairs
+                for j = 1:numPairs
+                    commInd = (i - 1) * numPairs + j;
+                    self.comms(:, commInd) = self.CommBetween(i, j);
+                end
+            end
+            self.bigMat = self.comms' * self.comms;
+        end
         
         function PreUpdateFull(self)
             numPairs = self.maxNumPairs;
@@ -146,38 +166,51 @@ classdef RLCIIS < handle
         function UpdateBigMat(self)
             numPairs = length(self.pairs);
             updInd = [numPairs * (1:(numPairs - 1)), ...
-                    ((numPairs - 1) * numPairs + 1):numPairs^2];
+                      ((numPairs - 1) * numPairs + 1):numPairs^2];
             allInd = 1:numPairs^2;
             com = self.comms;
             self.bigMat(updInd, allInd) = com(:, updInd)' * com(:, allInd);
             self.bigMat(allInd, updInd) = self.bigMat(updInd, allInd)';
         end
         
-        function cdiisCoeffVec = InitialCoeffVec(~, tensorUse)
+        function cdiisCoeffVec = InitialCoeffVec(self, tensorUse)
             numPairs = size(tensorUse, 1);
             onesVec = ones(numPairs, 1);
-            hessian = zeros(numPairs, numPairs);
+            hess = zeros(numPairs, numPairs);
             for i = 1:numPairs
                 for j = 1:numPairs
-                    hessian(i, j) = tensorUse(i, i, j, j);
+                    hess(i, j) = tensorUse(i, i, j, j);
                 end
             end
-            hessian = [hessian, onesVec; onesVec', 0];
-            cdiisCoeffVec = hessian \ [zeros(numPairs,1); 1];
-            cdiisCoeffVec = cdiisCoeffVec(1:end-1);
+            hess = (hess + hess') ./ 2;
+            hessL = [hess, onesVec; onesVec', 0];
+            rcondHessL = rcond(hessL);
+            if rcondHessL < self.minHessRcond || isnan(rcondHessL)
+                disp('Inversion failed');
+                cdiisCoeffVec = NaN .* ones(numPairs, 1);
+                return;
+            end
+            cdiisCoeffVec = linsolve(hessL, [zeros(numPairs, 1); 1]);
+            cdiisCoeffVec = cdiisCoeffVec(1:(end - 1));
         end
         
         function coeffVec = FindCoeffVec(self)
             numPairs = length(self.pairs);
             allInd = 1:numPairs^2;
-            tensor = reshape(self.bigMat(allInd, allInd), numPairs*ones(1, 4));
-            for useNumPairs = numPairs:-1:2
-                useInd = numPairs-useNumPairs+1:numPairs;
+            tensor = reshape(self.bigMat(allInd, allInd), ...
+                             numPairs, numPairs, numPairs, numPairs);
+            for useNumPairs = 1:(numPairs - 1)
+                useInd = useNumPairs:numPairs;
                 tensorUse = tensor(useInd, useInd, useInd, useInd);
                 iniCoeffVec = self.InitialCoeffVec(tensorUse);
+                if isnan(sum(iniCoeffVec))
+                    disp('NaN found in iniCoeffVec; reducing tensor size');
+                    continue;
+                end
                 coeffVec = self.NewtonSolver(tensorUse, iniCoeffVec);
                 if isnan(sum(coeffVec))
-                    disp('NaN found in coefficients; reducing tensor size')
+                    disp('NaN found in coefficients; reducing tensor size');
+                    continue;
                 else
                     return;
                 end
@@ -197,7 +230,8 @@ classdef RLCIIS < handle
             hess = reshape(hess, [], numPairs);
         end
         
-        function coeffVec = NewtonSolver(self, tensorUse, coeffVec)
+        function coeffVec = NewtonSolver(self, tensorUse, iniCoeffVec)
+            coeffVec = iniCoeffVec;
             tensorGrad = tensorUse + permute(tensorUse, [2 1 3 4]);
             tensorHess = tensorUse + permute(tensorUse, [1 3 2 4]) ...
                                    + permute(tensorUse, [1 4 2 3]) ...
@@ -206,16 +240,20 @@ classdef RLCIIS < handle
                                    + permute(tensorUse, [2 4 1 3]);
             lambda = 0;
             for iter = 1:self.maxIterNewton
+                oldCoeffVec = coeffVec;
                 [grad, hess] = self.GradHess(tensorGrad, tensorHess, coeffVec);
+                hess = (hess + hess') ./ 2;
                 gradL = [grad + lambda; 0];
                 onesVec = ones(length(coeffVec), 1);
                 hessL = [hess, onesVec; onesVec', 0];
-                if rcond(hessL) < self.minHessRcond
+                rcondHessL = rcond(hessL);
+                if rcondHessL < self.minHessRcond || isnan(rcondHessL)
                     disp('Inversion failed')
+                    coeffVec = oldCoeffVec;
                     return;
                 end
                 coeffsAndLambda = [coeffVec; lambda];
-                coeffsAndLambda = coeffsAndLambda - hessL \ gradL;
+                coeffsAndLambda = coeffsAndLambda - linsolve(hessL, gradL);
                 coeffVec = coeffsAndLambda(1:end-1);
                 lambda = coeffsAndLambda(end);
                 if sqrt(mean(gradL.^2)) < self.gradNormThres
@@ -223,7 +261,7 @@ classdef RLCIIS < handle
                 end
             end
             
-            if iter > 199
+            if iter > self.maxIterNewton - 1
                 disp('Not converged');
             end
         end

@@ -3,15 +3,20 @@ classdef RHF < handle
     properties (Access = protected)
         
         overlapMat;
-        invSqrtmS;
         coreHamilt;
         nucRepEnergy;
         numElectrons;
         matpsi;
         
+    end
+    
+    properties (Access = private)
+        
+        invSqrtmS;
+        
         maxSCFIter = 200;
-        RMSDensityThreshold = 1e-8;
-        MaxDensityThreshold = 1e-6;
+        RMSDensityThreshold = 0.5e-8;
+        MaxDensityThreshold = 0.5e-6;
         EnergyThreshold = 1e-6;
         
     end
@@ -63,9 +68,18 @@ classdef RHF < handle
         
         function [densVec, orbital] = HarrisGuess(self)
             orbital = self.G09ReadMatrix('HarrisGuessMOAlpha');
-            orbital = self.G09OrbToPsi4Orb(orbital);
+            [g09Order, g09Renormby] = self.G09OrderG09RenormBy();
+            orbital = orbital .* repmat(g09Renormby, [1, size(orbital, 2)]);
+            orbital = orbital(g09Order, :);
             densVec = self.OrbToDensVec(orbital);
         end
+        
+        function densVec = SADGuess(self)
+            self.matpsi.SCF_GuessSAD();
+            densVec = reshape(self.matpsi.SCF_GuessDensity(), [], 1);
+        end
+        
+        PrepareECP(self);
         
     end
     
@@ -79,15 +93,13 @@ classdef RHF < handle
         function fockVec = OrbToFockVec(self, orbital)
             occOrb = orbital(:, 1:self.numElectrons(1));
             self.matpsi.JK_CalcAllFromOccOrb(occOrb);
-            gMat = 2 .* self.matpsi.JK_RetrieveJ() - self.matpsi.JK_RetrieveK();
-            fockVec = reshape(self.coreHamilt + gMat, [], 1);
+            fockVec = self.RetrieveFockVec();
         end
         
         function fockVec = DensVecToFockVec(self, densVec)
             densMat = reshape(densVec, size(self.overlapMat));
             self.matpsi.JK_CalcAllFromDens(densMat);
-            gMat = 2 .* self.matpsi.JK_RetrieveJ() - self.matpsi.JK_RetrieveK();
-            fockVec = reshape(self.coreHamilt + gMat, [], 1);
+            fockVec = self.RetrieveFockVec();
         end
         
         function [orbital, orbEigValues] = SolveFockVec(self, fockVec)
@@ -121,19 +133,24 @@ classdef RHF < handle
             lciis = SCF.RLCIIS(self.overlapMat, numVectors);
         end
         
-        orb = G09OrbToPsi4Orb(self, orb);
+        matrix = G09ReadMatrix(self, type)
+        [g09Order, g09RenormBy] = G09OrderG09RenormBy(self)
         
     end
     
     methods (Access = private)
         
+        function fockVec = RetrieveFockVec(self)
+            gMat = 2 .* self.matpsi.JK_RetrieveJ() - self.matpsi.JK_RetrieveK();
+            fockVec = reshape(self.coreHamilt + gMat, [], 1);
+        end
+        
         fileStr = G09InputStr(self);
         fileIsValid = G09FileIsValid(self);
-        matrix = G09ReadMatrix(self, type)
         
     end
     
-    methods(Static, Access = private)
+    methods (Static, Access = private)
         
         function numElectronsAB = CalcNumElectrons(numElectronsTotal, mult)
             numElectronsA = (numElectronsTotal + mult - 1) / 2;

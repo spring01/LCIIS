@@ -1,5 +1,8 @@
 function matrix = G09ReadMatrix(~, type)
-if strcmpi(type, 'HarrisGuessMOAlpha')
+if strcmpi(type, 'ecpInt')
+    beginning = ' ECP Integrals: ';
+    ending = ' SVDSVc ';
+elseif strcmpi(type, 'HarrisGuessMOAlpha')
     beginning = ' Guess MO coefficients \(alpha\):';
     ending = ' Guess MO coefficients \(beta\):';
 elseif strcmpi(type, 'HarrisGuessMOBeta')

@@ -11,18 +11,18 @@ classdef ULCIIS < SCF.RLCIIS
     
     methods (Access = protected)
         
-        function pair = WrapFockDensInPair(self, newFockVector, newDensVector)
+        function pair = CreatePair(self, fockVector, densVector)
             % This function defines interface.
             % In unrestricted SCF, newFockVector stores the Fock matrices, and
             % newDensVector stores the density matrices, both as two nbf^2 by 1
             % vectors; newFockVector(:, 1) is the alpha Fock matrix, and
             % newFockVector(:, 2) is the beta Fock matrix; so as
             % newDensVector.
-            pair.fockVector = newFockVector;
-            pair.fockOrthoMatrices{1} = self.FockOrthoMat(newFockVector(:, 1));
-            pair.fockOrthoMatrices{2} = self.FockOrthoMat(newFockVector(:, 2));
-            pair.densOrthoMatrices{1} = self.DensOrthoMat(newDensVector(:, 1));
-            pair.densOrthoMatrices{2} = self.DensOrthoMat(newDensVector(:, 2));
+            pair.fockVector = fockVector;
+            pair.fockOrthoMatrices{1} = self.FockOrthoMat(fockVector(:, 1));
+            pair.fockOrthoMatrices{2} = self.FockOrthoMat(fockVector(:, 2));
+            pair.densOrthoMatrices{1} = self.DensOrthoMat(densVector(:, 1));
+            pair.densOrthoMatrices{2} = self.DensOrthoMat(densVector(:, 2));
         end
         
         function comm = CommBetween(self, ind1, ind2)
